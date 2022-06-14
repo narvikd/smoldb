@@ -50,12 +50,9 @@ func compress(input []byte) ([]byte, error) {
 }
 
 func decompress(input []byte) ([]byte, error) {
-	gz, errReader := gzip.NewReader(bytes.NewReader(input))
+	gz, errReader := gzip.NewReader(bytes.NewBuffer(input))
 	if errReader != nil {
 		return nil, errWrap(errReader, "new decompressor")
-	}
-	if _, err := gz.Read(input); err != nil {
-		return nil, errWrap(err, "decompressing")
 	}
 	if err := gz.Close(); err != nil {
 		return nil, errWrap(err, "closing/flushing decompressor")
