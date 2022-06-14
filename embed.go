@@ -12,11 +12,29 @@ import (
 const filePath = "db.json"
 
 var (
-	once sync.Once
-	DB   *Collection
+	once  sync.Once
+	DB    *Collection
+	debug = false
 )
 
 func New() (*Collection, error) {
+	d, err := newDB()
+	if err != nil {
+		return nil, err
+	}
+	return d, nil
+}
+
+func NewDebug() (*Collection, error) {
+	debug = true
+	d, err := newDB()
+	if err != nil {
+		return nil, err
+	}
+	return d, nil
+}
+
+func newDB() (*Collection, error) {
 	if DB != nil {
 		return nil, errors.New("DB already initialized")
 	}
@@ -68,7 +86,9 @@ func (c *Collection) saveRecordsAndSetHash() {
 		log.Println("DB: there was a problem saving the records file:", err)
 	}
 	c.LastRecordsHash = c.getHash()
-	log.Println("DB: Debug: Records modified... Saving")
+	if debug {
+		log.Println("DB: Debug: Records modified... Saving")
+	}
 }
 
 func (c *Collection) getHash() string {
