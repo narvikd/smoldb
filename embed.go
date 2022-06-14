@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-const filePath = "db.json"
+const filePath = "db.json.zstd"
 
 var (
 	once  sync.Once
@@ -65,14 +65,26 @@ func setSingleton() error {
 	return nil
 }
 
+func (c *Collection) getLastRecordHash() string {
+	c.RLock()
+	defer c.RUnlock()
+	return c.LastRecordsHash
+}
+
+func (c *Collection) setLastRecordHash(h string) {
+	c.Lock()
+	defer c.Unlock()
+	c.LastRecordsHash = h
+}
+
 func (c *Collection) watcher() {
 	for {
-		if len(c.Records) > 0 {
+		if len(c.GetAllRecords()) > 0 {
 			if c.LastRecordsHash == "" { // Is not set
-				c.saveRecordsAndSetHash() // Set it and save the records file
+				c.SaveRecordsAndSetHash() // Set it and save the records file
 			} else { // If it is set
-				if c.getHash() != c.LastRecordsHash { // But a new hash isn't the same as the stored one
-					c.saveRecordsAndSetHash() // Set it and save the records file
+				if c.getHash(c.GetAllRecords()) != c.getLastRecordHash() { // But a new hash isn't the same as the stored one
+					c.SaveRecordsAndSetHash() // Set it and save the records file
 				}
 			}
 		}
@@ -80,29 +92,32 @@ func (c *Collection) watcher() {
 	}
 }
 
-func (c *Collection) saveRecordsAndSetHash() {
-	err := c.saveRecordsToFile()
+func (c *Collection) SaveRecordsAndSetHash() {
+	records := c.GetAllRecords()
+	err := c.saveRecordsToFile(records)
 	if err != nil {
 		log.Println("DB: there was a problem saving the records file:", err)
 	}
-	c.LastRecordsHash = c.getHash()
+	c.setLastRecordHash(c.getHash(records))
 	if debug {
 		log.Println("DB: Debug: Records modified... Saving")
 	}
 }
 
-func (c *Collection) getHash() string {
-	h, errH := hashInput(c.Records)
+func (c *Collection) getHash(records map[string]string) string {
+	c.RLock()
+	defer c.RUnlock()
+	h, errH := hashInput(records)
 	if errH != nil {
 		log.Println("DB: there was a problem hashing records:", errH)
 	}
 	return h
 }
 
-func (c *Collection) saveRecordsToFile() error {
+func (c *Collection) saveRecordsToFile(records map[string]string) error {
 	c.Lock()
 	defer c.Unlock()
-	jsonBytes, errMarshal := json.Marshal(c.Records)
+	jsonBytes, errMarshal := json.Marshal(records)
 	if errMarshal != nil {
 		return errWrap(errMarshal, "DB: couldn't marshal records")
 	}

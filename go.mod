@@ -3,6 +3,7 @@ module github.com/narvikd/smoldb
 go 1.18
 
 require (
+	github.com/DataDog/zstd v1.5.2
 	github.com/narvikd/filekit v1.0.1
 	github.com/stretchr/testify v1.7.2
 )

@@ -35,6 +35,8 @@ func newCollection() (*Collection, error) {
 }
 
 func (c *Collection) NewRecord(key string, value string) error {
+	c.Lock()
+	defer c.Unlock()
 	_, exist := c.Records[key]
 	if exist {
 		return errors.New("record already exist")
@@ -45,14 +47,18 @@ func (c *Collection) NewRecord(key string, value string) error {
 }
 
 func (c *Collection) GetRecord(key string) (string, error) {
-	_, exist := c.Records[key]
+	c.RLock()
+	defer c.RUnlock()
+	v, exist := c.Records[key]
 	if !exist {
 		return "", errors.New("record doesn't exist")
 	}
-	return c.Records[key], nil
+	return v, nil
 }
 
 func (c *Collection) ModifyRecord(key string, value string) error {
+	c.Lock()
+	defer c.Unlock()
 	_, exist := c.Records[key]
 	if !exist {
 		return errors.New("record doesn't exist")
@@ -63,6 +69,8 @@ func (c *Collection) ModifyRecord(key string, value string) error {
 }
 
 func (c *Collection) DelRecord(key string) error {
+	c.Lock()
+	defer c.Unlock()
 	_, exist := c.Records[key]
 	if !exist {
 		return errors.New("record doesn't exist")
@@ -73,6 +81,8 @@ func (c *Collection) DelRecord(key string) error {
 }
 
 func (c *Collection) GetAllRecordsKeys() []string {
+	c.RLock()
+	defer c.RUnlock()
 	var s []string
 	for k := range c.Records {
 		s = append(s, k)
@@ -81,5 +91,12 @@ func (c *Collection) GetAllRecordsKeys() []string {
 }
 
 func (c *Collection) GetAllRecords() map[string]string {
-	return c.Records
+	c.RLock()
+	defer c.RUnlock()
+	// It needs to be a copy of the map, otherwise it will get into a race condition
+	newMap := make(map[string]string)
+	for k, v := range c.Records {
+		newMap[k] = v
+	}
+	return newMap
 }

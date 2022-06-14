@@ -2,14 +2,13 @@ package smoldb
 
 import (
 	"bytes"
-	"compress/gzip"
 	"crypto/sha512"
 	"encoding/gob"
 	"encoding/hex"
 	"fmt"
+	"github.com/DataDog/zstd"
 	"github.com/narvikd/filekit"
 	"io"
-	"io/ioutil"
 )
 
 func hashInput(input interface{}) (string, error) {
@@ -35,31 +34,17 @@ func errWrap(err error, message string) error {
 }
 
 func compress(input []byte) ([]byte, error) {
-	var b bytes.Buffer
-	gz, errWriter := gzip.NewWriterLevel(&b, 6)
-	if errWriter != nil {
-		return nil, errWrap(errWriter, "new compressor")
+	b, err := zstd.CompressLevel(nil, input, zstd.DefaultCompression)
+	if err != nil {
+		return nil, err
 	}
-	if _, err := gz.Write(input); err != nil {
-		return nil, errWrap(err, "compressing")
-	}
-	if err := gz.Close(); err != nil {
-		return nil, errWrap(err, "closing/flushing compression")
-	}
-	return b.Bytes(), nil
+	return b, nil
 }
 
 func decompress(input []byte) ([]byte, error) {
-	gz, errReader := gzip.NewReader(bytes.NewBuffer(input))
-	if errReader != nil {
-		return nil, errWrap(errReader, "new decompressor")
-	}
-	if err := gz.Close(); err != nil {
-		return nil, errWrap(err, "closing/flushing decompressor")
-	}
-	b, errReadAll := ioutil.ReadAll(gz)
-	if errReadAll != nil {
-		return nil, errWrap(errReadAll, "reading decompressed output")
+	b, err := zstd.Decompress(nil, input)
+	if err != nil {
+		return nil, err
 	}
 	return b, nil
 }
