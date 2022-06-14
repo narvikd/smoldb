@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/narvikd/filekit"
 	"io"
+	"io/ioutil"
 )
 
 func hashInput(input interface{}) (string, error) {
@@ -49,8 +50,7 @@ func compress(input []byte) ([]byte, error) {
 }
 
 func decompress(input []byte) ([]byte, error) {
-	var b bytes.Buffer
-	gz, errReader := gzip.NewReader(&b)
+	gz, errReader := gzip.NewReader(bytes.NewReader(input))
 	if errReader != nil {
 		return nil, errWrap(errReader, "new decompressor")
 	}
@@ -60,7 +60,11 @@ func decompress(input []byte) ([]byte, error) {
 	if err := gz.Close(); err != nil {
 		return nil, errWrap(err, "closing/flushing decompressor")
 	}
-	return b.Bytes(), nil
+	b, errReadAll := ioutil.ReadAll(gz)
+	if errReadAll != nil {
+		return nil, errWrap(errReadAll, "reading decompressed output")
+	}
+	return b, nil
 }
 
 func readCompressedFile(path string) ([]byte, error) {
